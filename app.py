@@ -56,6 +56,10 @@ def poll_transcription(transcript_id):
         elif data['status'] == 'error':
             raise Exception(data['error'])
         time.sleep(3)  # wait before next poll
+        
+@app.route('/')
+def index():
+    return jsonify({"message": "Alo App Backend is running"}), 200
 
 @app.route('/transcribe', methods=['POST'])
 def transcribe_and_translate():
