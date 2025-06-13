@@ -12,6 +12,10 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 model = WhisperModel("tiny", compute_type="int8")  # optimized for CPU
 translator = Translator()
 
+@app.route('/')
+def index():
+    return jsonify({"message": "Alo App Backend is running"}), 200
+
 @app.route('/transcribe', methods=['POST'])
 def transcribe_audio():
     if 'file' not in request.files:
