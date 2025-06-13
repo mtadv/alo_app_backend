@@ -1,23 +1,64 @@
 from flask import Flask, request, jsonify
 import os
+import requests
 from werkzeug.utils import secure_filename
 from googletrans import Translator
-from faster_whisper import WhisperModel  # NEW import
+import time
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Load Faster-Whisper model (base or tiny)
-model = WhisperModel("base", compute_type="int8")  # optimized for CPU
+# AssemblyAI API
+ASSEMBLYAI_API_KEY = '0da22ba07b2a4a46a5c4ae4ac09ba292'
+ASSEMBLYAI_HEADERS = {
+    'authorization': ASSEMBLYAI_API_KEY,
+    'content-type': 'application/json'
+}
+
+# Google Translate
 translator = Translator()
 
-@app.route('/')
-def index():
-    return jsonify({"message": "Alo App Backend is running"}), 200
+# Upload audio file to AssemblyAI
+def upload_to_assemblyai(file_path):
+    with open(file_path, 'rb') as f:
+        response = requests.post(
+            'https://api.assemblyai.com/v2/upload',
+            headers={'authorization': ASSEMBLYAI_API_KEY},
+            files={'file': f}
+        )
+    response.raise_for_status()
+    return response.json()['upload_url']
+
+# Start transcription request
+def request_transcription(audio_url):
+    json_data = {
+        "audio_url": audio_url,
+        "language_code": "en"  # Or auto-detect: remove this line
+    }
+    response = requests.post(
+        'https://api.assemblyai.com/v2/transcript',
+        headers=ASSEMBLYAI_HEADERS,
+        json=json_data
+    )
+    response.raise_for_status()
+    return response.json()['id']
+
+# Poll until transcription is ready
+def poll_transcription(transcript_id):
+    polling_url = f'https://api.assemblyai.com/v2/transcript/{transcript_id}'
+    while True:
+        response = requests.get(polling_url, headers=ASSEMBLYAI_HEADERS)
+        response.raise_for_status()
+        data = response.json()
+        if data['status'] == 'completed':
+            return data['text']
+        elif data['status'] == 'error':
+            raise Exception(data['error'])
+        time.sleep(3)  # wait before next poll
 
 @app.route('/transcribe', methods=['POST'])
-def transcribe_audio():
+def transcribe_and_translate():
     if 'file' not in request.files:
         return jsonify({'error': 'No file uploaded'}), 400
 
@@ -30,14 +71,17 @@ def transcribe_audio():
     file.save(filepath)
 
     try:
-        segments, _ = model.transcribe(filepath)
-        original_text = " ".join(segment.text for segment in segments)
+        # Upload & transcribe
+        audio_url = upload_to_assemblyai(filepath)
+        transcript_id = request_transcription(audio_url)
+        original_text = poll_transcription(transcript_id)
 
-        target_lang = request.args.get('target_lang')
+        # Optional translation
+        target_lang = request.args.get('target_lang')  # e.g. ?target_lang=ar
         if target_lang:
             translated = translator.translate(original_text, dest=target_lang)
             return jsonify({
-                'text': original_text,
+                'original_text': original_text,
                 'translated_text': translated.text,
                 'translated_language': target_lang
             }), 200
@@ -46,6 +90,7 @@ def transcribe_audio():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
     finally:
         os.remove(filepath)
 
