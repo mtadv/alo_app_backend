@@ -9,7 +9,7 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # Load Faster-Whisper model (base or tiny)
-model = WhisperModel("tiny", compute_type="int8")  # optimized for CPU
+model = WhisperModel("base", compute_type="int8")  # optimized for CPU
 translator = Translator()
 
 @app.route('/')
