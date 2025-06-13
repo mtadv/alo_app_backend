@@ -3,8 +3,5 @@ services:
     name: alo-app-backend
     env: python
     plan: free
-    buildCommand: |
-      apt-get update && apt-get install -y ffmpeg
-      pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt
     startCommand: python app.py
-

@@ -1,15 +1,15 @@
 from flask import Flask, request, jsonify
 import os
-import whisper
 from werkzeug.utils import secure_filename
 from googletrans import Translator
+from faster_whisper import WhisperModel  # NEW import
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# Load Whisper model
-model = whisper.load_model("base")
+# Load Faster-Whisper model (base or tiny)
+model = WhisperModel("base", compute_type="int8")  # optimized for CPU
 translator = Translator()
 
 @app.route('/transcribe', methods=['POST'])
@@ -26,10 +26,10 @@ def transcribe_audio():
     file.save(filepath)
 
     try:
-        result = model.transcribe(filepath)
-        original_text = result['text']
+        segments, _ = model.transcribe(filepath)
+        original_text = " ".join(segment.text for segment in segments)
 
-        target_lang = request.args.get('target_lang')  # e.g. ?target_lang=ar
+        target_lang = request.args.get('target_lang')
         if target_lang:
             translated = translator.translate(original_text, dest=target_lang)
             return jsonify({

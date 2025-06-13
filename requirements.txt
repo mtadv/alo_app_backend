@@ -1,6 +1,4 @@
 flask==2.2.5
 werkzeug==2.2.3
-openai-whisper
-torch
+faster-whisper
 googletrans==4.0.0-rc1
-ffmpeg-python
