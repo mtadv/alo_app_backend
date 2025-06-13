@@ -2,3 +2,5 @@ flask==2.2.5
 werkzeug==2.2.3
 faster-whisper
 googletrans==4.0.0-rc1
+gunicorn==21.2.0
+
